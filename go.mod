@@ -1,6 +1,7 @@
 module github.com/SemRels/analyzer-conventional
 
-go 1.24.0
+go 1.25
+toolchain go1.25.0
 
 require (
 	github.com/SemRels/semrel-api v0.1.5
