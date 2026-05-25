@@ -1,32 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The plugin-template Authors
+// SPDX-FileCopyrightText: 2026 The go-semrel Authors
 
 package grpc
 
 import (
 	"context"
+	"fmt"
+	"log"
 
-	semrelplugin "github.com/SemRels/analyzer-conventional/internal/plugin"
+	semrelv1 "github.com/SemRels/analyzer-conventional/api/gen/v1"
+	"github.com/SemRels/analyzer-conventional/internal/plugin"
 )
 
-// HealthResponse is a lightweight stand-in until generated protobuf bindings are wired in.
-type HealthResponse struct {
-	Name string
+// CommitAnalyzerServer implements semrelv1.CommitAnalyzerPluginServer.
+type CommitAnalyzerServer struct {
+	semrelv1.UnimplementedCommitAnalyzerPluginServer
+	analyzer *plugin.Analyzer
 }
 
-// ProviderServer adapts a provider implementation for the future gRPC transport layer.
-type ProviderServer struct {
-	provider semrelplugin.Provider
+func NewCommitAnalyzerServer() *CommitAnalyzerServer {
+	return &CommitAnalyzerServer{analyzer: plugin.NewAnalyzer()}
 }
 
-func NewProviderServer(provider semrelplugin.Provider) *ProviderServer {
-	return &ProviderServer{provider: provider}
-}
+func (s *CommitAnalyzerServer) AnalyzeCommits(ctx context.Context, req *semrelv1.AnalyzeCommitsRequest) (*semrelv1.AnalyzeCommitsResponse, error) {
+	_ = ctx
+	if req.GetCtx() == nil {
+		return nil, fmt.Errorf("missing release context")
+	}
 
-func (s *ProviderServer) Health(ctx context.Context) (*HealthResponse, error) {
-	if err := s.provider.HealthCheck(ctx); err != nil {
+	result, err := s.analyzer.AnalyzeCommits(req.GetCtx().GetCommits(), req.GetCtx().GetConfig())
+	if err != nil {
 		return nil, err
 	}
 
-	return &HealthResponse{Name: s.provider.Name()}, nil
+	log.Printf("analyzer result: bump=%s reason=%s", result.Bump, result.Reason)
+
+	return &semrelv1.AnalyzeCommitsResponse{
+		Bump:   result.Bump,
+		Reason: result.Reason,
+	}, nil
 }

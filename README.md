@@ -1,47 +1,99 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- SPDX-FileCopyrightText: 2026 The go-semrel Authors -->
+
 # analyzer-conventional
 
-Conventional commits analyzer plugin for SemRel.
+`analyzer-conventional` is a SemRel commit-analyzer plugin that reads conventional commit messages and returns the semantic version bump required for a release.
 
-Determines release types from conventional commit messages and configurable type-to-bump rules.
+## What the plugin does
 
-## Documentation
+- Parses conventional commit subjects from commit `raw_message` values
+- Detects breaking changes from `!`, `BREAKING CHANGE:`, and `BREAKING-CHANGE:` markers
+- Chooses the highest required bump across all commits
+- Supports per-type bump overrides through the plugin config map
 
-- SemRel docs (planned): <https://github.com/SemRels/semrel/tree/main/docs/plugins/analyzer-conventional>
-- Plugin template: <https://github.com/SemRels/plugin-template>
-- Registry: <https://registry.semrel.io>
+## Supported conventional commit formats
 
-## Repository Layout
+The analyzer recognizes these subject formats:
+
+- `type(scope): description`
+- `type!: description`
+- `type(scope)!: description`
+
+Examples:
 
 ~~~text
-cmd/plugin/              Plugin entry point
-internal/plugin/         Business logic scaffold
-internal/grpc/           gRPC transport scaffold
-proto/v1                 Symlink to the SemRel protobuf contract
-.github/workflows/       CI, release, and security automation
+feat: add release notes rendering
+fix(parser): preserve footer whitespace
+refactor(core)!: remove legacy adapter
 ~~~
 
-## Development
+Breaking changes can also be declared in the body or footer:
 
-~~~bash
-go build ./cmd/plugin
-go test ./...
+~~~text
+feat(api): change payload format
+
+BREAKING CHANGE: payload consumers must update their schema
 ~~~
 
-## Configuration Example
+## Default bump mapping
+
+| Commit type | Default bump |
+| --- | --- |
+| `feat` | `minor` |
+| `fix` | `patch` |
+| `build` | `none` |
+| `chore` | `none` |
+| `ci` | `none` |
+| `docs` | `none` |
+| `perf` | `none` |
+| `refactor` | `none` |
+| `style` | `none` |
+| `test` | `none` |
+| any breaking change | `major` |
+| unknown / non-conventional | `none` |
+
+## Configurable overrides
+
+Override the default mapping by setting `bump.<type>` keys in the plugin config block.
+
+Example `.semrel.yaml`:
 
 ~~~yaml
 plugins:
   - name: analyzer-conventional
     type: analyzer
     config:
-      preset: conventionalcommits
-      breaking_keywords:
-        - BREAKING CHANGE
-      type_map:
-        feat: minor
-        fix: patch
+      bump.chore: patch
+      bump.docs: minor
+      bump.refactor: patch
 ~~~
 
-## Status
+Accepted override values are `none`, `patch`, `minor`, and `major`.
 
-This repository is bootstrapped from SemRels/plugin-template and is ready for implementation.
+## Error scenarios
+
+The plugin returns an error when:
+
+- the gRPC request is missing `ctx`
+- a `bump.<type>` override uses an unsupported value
+
+Non-conventional or empty commit messages are handled gracefully and simply contribute `none`.
+
+## Build, run, and test
+
+~~~bash
+go mod tidy
+go build ./...
+go test -v -cover ./...
+make build
+make test
+~~~
+
+Run the plugin locally:
+
+~~~bash
+go run cmd/plugin/main.go
+~~~
+
+The server binds to `127.0.0.1:0`, logs the chosen listening address to stderr, and serves the SemRel `CommitAnalyzerPlugin` gRPC API.
