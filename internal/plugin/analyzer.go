@@ -1,39 +1,44 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2026 The analyzer-conventional Authors
 
-// Package plugin implements CommitAnalyzerPlugin for Conventional Commits.
 package plugin
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strings"
-
-	semrelv1 "github.com/SemRels/semrel-api/api/gen/v1"
 )
+
+type BumpLevel string
+
+const (
+	BumpNone  BumpLevel = "none"
+	BumpPatch BumpLevel = "patch"
+	BumpMinor BumpLevel = "minor"
+	BumpMajor BumpLevel = "major"
+)
+
+type AnalysisResult struct {
+	Bump   BumpLevel `json:"bump"`
+	Reason string    `json:"reason"`
+}
+
+type Analyzer struct{}
 
 var conventionalHeaderPattern = regexp.MustCompile(`^(\w+)(\([\w-]+\))?(!)?:(.+)$`)
 
-// Analyzer implements the SemRels CommitAnalyzerPlugin gRPC service.
-type Analyzer struct {
-	semrelv1.UnimplementedCommitAnalyzerPluginServer
-}
-
-// New returns a Conventional Commits analyzer plugin implementation.
 func New() *Analyzer {
 	return &Analyzer{}
 }
 
-// AnalyzeCommits determines the highest semantic version bump required by the release context commits.
-func (a *Analyzer) AnalyzeCommits(_ context.Context, req *semrelv1.AnalyzeCommitsRequest) (*semrelv1.AnalyzeCommitsResponse, error) {
-	response := &semrelv1.AnalyzeCommitsResponse{
-		Bump:   semrelv1.BumpLevel_BUMP_LEVEL_NONE,
+func (a *Analyzer) Analyze(commits []string) AnalysisResult {
+	result := AnalysisResult{
+		Bump:   BumpNone,
 		Reason: "no conventional commits require a version bump",
 	}
 
-	if req == nil || req.GetCtx() == nil || len(req.GetCtx().GetCommits()) == 0 {
-		return response, nil
+	if len(commits) == 0 {
+		return result
 	}
 
 	majorCount := 0
@@ -41,12 +46,8 @@ func (a *Analyzer) AnalyzeCommits(_ context.Context, req *semrelv1.AnalyzeCommit
 	patchCount := 0
 	patchTypes := map[string]int{}
 
-	for _, commit := range req.GetCtx().GetCommits() {
-		if commit == nil {
-			continue
-		}
-
-		commitType, breaking := parseCommit(commit.GetRawMessage())
+	for _, commit := range commits {
+		commitType, breaking := parseCommit(commit)
 		if commitType == "" && !breaking {
 			continue
 		}
@@ -66,23 +67,27 @@ func (a *Analyzer) AnalyzeCommits(_ context.Context, req *semrelv1.AnalyzeCommit
 	}
 
 	if majorCount > 0 {
-		response.Bump = semrelv1.BumpLevel_BUMP_LEVEL_MAJOR
-		response.Reason = fmt.Sprintf("%d breaking commit(s) require a MAJOR bump", majorCount)
-		return response, nil
+		return AnalysisResult{
+			Bump:   BumpMajor,
+			Reason: fmt.Sprintf("%d breaking commit(s) require a major bump", majorCount),
+		}
 	}
 
 	if minorCount > 0 {
-		response.Bump = semrelv1.BumpLevel_BUMP_LEVEL_MINOR
-		response.Reason = fmt.Sprintf("%d feat commit(s) require a MINOR bump", minorCount)
-		return response, nil
+		return AnalysisResult{
+			Bump:   BumpMinor,
+			Reason: fmt.Sprintf("%d feat commit(s) require a minor bump", minorCount),
+		}
 	}
 
 	if patchCount > 0 {
-		response.Bump = semrelv1.BumpLevel_BUMP_LEVEL_PATCH
-		response.Reason = fmt.Sprintf("%d %s commit(s) require a PATCH bump", patchCount, summarizePatchTypes(patchTypes))
+		return AnalysisResult{
+			Bump:   BumpPatch,
+			Reason: fmt.Sprintf("%d %s commit(s) require a patch bump", patchCount, summarizePatchTypes(patchTypes)),
+		}
 	}
 
-	return response, nil
+	return result
 }
 
 func parseCommit(rawMessage string) (commitType string, breaking bool) {
@@ -95,12 +100,8 @@ func parseCommit(rawMessage string) (commitType string, breaking bool) {
 		breaking = true
 	}
 
-	header := trimmed
-	if idx := strings.Index(header, "\n"); idx >= 0 {
-		header = header[:idx]
-	}
-
-	matches := conventionalHeaderPattern.FindStringSubmatch(strings.TrimSpace(header))
+	header := firstLine(trimmed)
+	matches := conventionalHeaderPattern.FindStringSubmatch(header)
 	if len(matches) == 0 {
 		return "", breaking
 	}
@@ -121,6 +122,16 @@ func hasBreakingChangeFooter(message string) bool {
 	}
 
 	return false
+}
+
+func firstLine(message string) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return ""
+	}
+
+	parts := strings.SplitN(message, "\n", 2)
+	return strings.TrimSpace(parts[0])
 }
 
 func summarizePatchTypes(counts map[string]int) string {

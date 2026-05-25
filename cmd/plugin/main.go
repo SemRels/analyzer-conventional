@@ -4,19 +4,33 @@
 package main
 
 import (
-	analyzerplugin "github.com/SemRels/analyzer-conventional/internal/plugin"
-	semrelapi "github.com/SemRels/semrel-api/plugin"
-	goplugin "github.com/hashicorp/go-plugin"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+
+	plugin "github.com/SemRels/analyzer-conventional/internal/plugin"
 )
 
 func main() {
-	goplugin.Serve(&goplugin.ServeConfig{
-		HandshakeConfig: semrelapi.HandshakeConfig,
-		Plugins: map[string]goplugin.Plugin{
-			"analyzer": &semrelapi.CommitAnalyzerGRPCPlugin{
-				Impl: analyzerplugin.New(),
-			},
-		},
-		GRPCServer: goplugin.DefaultGRPCServer,
-	})
+	os.Exit(run(os.Stdout, os.Stderr, os.Getenv))
+}
+
+func run(stdout, stderr io.Writer, getenv func(string) string) int {
+	raw := getenv("SEMREL_COMMITS")
+
+	var commits []string
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &commits); err != nil {
+			fmt.Fprintln(stderr, "analyzer-conventional: invalid SEMREL_COMMITS JSON:", err)
+			return 1
+		}
+	}
+
+	if err := json.NewEncoder(stdout).Encode(plugin.New().Analyze(commits)); err != nil {
+		fmt.Fprintln(stderr, "analyzer-conventional:", err)
+		return 1
+	}
+
+	return 0
 }

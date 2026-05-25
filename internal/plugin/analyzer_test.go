@@ -4,27 +4,62 @@
 package plugin
 
 import (
-	"context"
 	"testing"
 
-	semrelv1 "github.com/SemRels/semrel-api/api/gen/v1"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAnalyzerAnalyzeCommitsMajorTypes(t *testing.T) {
+func TestAnalyzerAnalyze(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name       string
-		message    string
-		wantBump   semrelv1.BumpLevel
-		wantReason bool
+		commits    []string
+		wantBump   BumpLevel
+		wantReason string
 	}{
-		{name: "feature", message: "feat: add search", wantBump: semrelv1.BumpLevel_BUMP_LEVEL_MINOR, wantReason: true},
-		{name: "fix", message: "fix: resolve panic", wantBump: semrelv1.BumpLevel_BUMP_LEVEL_PATCH, wantReason: true},
-		{name: "perf", message: "perf: speed up diff", wantBump: semrelv1.BumpLevel_BUMP_LEVEL_PATCH, wantReason: true},
-		{name: "revert", message: "revert: feat: add search", wantBump: semrelv1.BumpLevel_BUMP_LEVEL_PATCH, wantReason: true},
-		{name: "docs", message: "docs: update usage", wantBump: semrelv1.BumpLevel_BUMP_LEVEL_NONE, wantReason: false},
+		{
+			name:       "major from breaking footer",
+			commits:    []string{"feat: add config\n\nBREAKING CHANGE: config schema changed"},
+			wantBump:   BumpMajor,
+			wantReason: "breaking commit(s)",
+		},
+		{
+			name:       "major from bang header",
+			commits:    []string{"feat!: remove deprecated endpoint"},
+			wantBump:   BumpMajor,
+			wantReason: "breaking commit(s)",
+		},
+		{
+			name:       "minor from feat",
+			commits:    []string{"feat(api): add pagination"},
+			wantBump:   BumpMinor,
+			wantReason: "feat commit(s)",
+		},
+		{
+			name:       "patch from fix",
+			commits:    []string{"fix: resolve panic"},
+			wantBump:   BumpPatch,
+			wantReason: "fix commit(s)",
+		},
+		{
+			name:       "none for non conventional commits",
+			commits:    []string{"docs: update usage", "merge branch 'main'"},
+			wantBump:   BumpNone,
+			wantReason: "no conventional commits",
+		},
+		{
+			name:       "highest bump wins",
+			commits:    []string{"fix: resolve panic", "feat(ui): add filters"},
+			wantBump:   BumpMinor,
+			wantReason: "feat commit(s)",
+		},
+		{
+			name:       "mixed patch types summarized",
+			commits:    []string{"fix: resolve panic", "perf: avoid extra allocations"},
+			wantBump:   BumpPatch,
+			wantReason: "patch-level commit(s)",
+		},
 	}
 
 	analyzer := New()
@@ -33,75 +68,55 @@ func TestAnalyzerAnalyzeCommitsMajorTypes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			resp, err := analyzer.AnalyzeCommits(context.Background(), requestWithMessages(tt.message))
-			require.NoError(t, err)
-			require.Equal(t, tt.wantBump, resp.GetBump())
-			if tt.wantReason {
-				require.NotEmpty(t, resp.GetReason())
-			}
+			result := analyzer.Analyze(tt.commits)
+			require.Equal(t, tt.wantBump, result.Bump)
+			require.Contains(t, result.Reason, tt.wantReason)
 		})
 	}
 }
 
-func TestAnalyzerAnalyzeCommitsBreakingChangeFooter(t *testing.T) {
+func TestParseCommit(t *testing.T) {
 	t.Parallel()
 
-	resp, err := New().AnalyzeCommits(context.Background(), requestWithMessages("feat: add config\n\nBREAKING CHANGE: config shape changed"))
-	require.NoError(t, err)
-	require.Equal(t, semrelv1.BumpLevel_BUMP_LEVEL_MAJOR, resp.GetBump())
-	require.NotEmpty(t, resp.GetReason())
-}
-
-func TestAnalyzerAnalyzeCommitsBangHeaderIsMajor(t *testing.T) {
-	t.Parallel()
-
-	resp, err := New().AnalyzeCommits(context.Background(), requestWithMessages("feat!: remove deprecated endpoint"))
-	require.NoError(t, err)
-	require.Equal(t, semrelv1.BumpLevel_BUMP_LEVEL_MAJOR, resp.GetBump())
-	require.NotEmpty(t, resp.GetReason())
-}
-
-func TestAnalyzerAnalyzeCommitsEmptyCommits(t *testing.T) {
-	t.Parallel()
-
-	resp, err := New().AnalyzeCommits(context.Background(), &semrelv1.AnalyzeCommitsRequest{Ctx: &semrelv1.ReleaseContext{}})
-	require.NoError(t, err)
-	require.Equal(t, semrelv1.BumpLevel_BUMP_LEVEL_NONE, resp.GetBump())
-}
-
-func TestAnalyzerAnalyzeCommitsNonConventionalCommits(t *testing.T) {
-	t.Parallel()
-
-	resp, err := New().AnalyzeCommits(context.Background(), requestWithMessages("merge branch 'main'", "update changelog manually"))
-	require.NoError(t, err)
-	require.Equal(t, semrelv1.BumpLevel_BUMP_LEVEL_NONE, resp.GetBump())
-}
-
-func TestAnalyzerAnalyzeCommitsHighestBumpWins(t *testing.T) {
-	t.Parallel()
-
-	resp, err := New().AnalyzeCommits(context.Background(), requestWithMessages("fix: resolve nil pointer", "feat(api): add pagination"))
-	require.NoError(t, err)
-	require.Equal(t, semrelv1.BumpLevel_BUMP_LEVEL_MINOR, resp.GetBump())
-	require.NotEmpty(t, resp.GetReason())
-}
-
-func TestAnalyzerAnalyzeCommitsReasonPresentWhenBumpRequired(t *testing.T) {
-	t.Parallel()
-
-	resp, err := New().AnalyzeCommits(context.Background(), requestWithMessages("fix: resolve nil pointer"))
-	require.NoError(t, err)
-	require.Equal(t, semrelv1.BumpLevel_BUMP_LEVEL_PATCH, resp.GetBump())
-	require.NotEmpty(t, resp.GetReason())
-}
-
-func requestWithMessages(messages ...string) *semrelv1.AnalyzeCommitsRequest {
-	commits := make([]*semrelv1.Commit, 0, len(messages))
-	for _, message := range messages {
-		commits = append(commits, &semrelv1.Commit{RawMessage: message})
+	tests := []struct {
+		name         string
+		commit       string
+		wantType     string
+		wantBreaking bool
+	}{
+		{
+			name:         "empty",
+			commit:       "   ",
+			wantBreaking: false,
+		},
+		{
+			name:         "non conventional with breaking footer",
+			commit:       "update docs\n\nBREAKING CHANGE: rewrite config",
+			wantBreaking: true,
+		},
+		{
+			name:         "conventional fix",
+			commit:       "fix(scope): patch issue",
+			wantType:     "fix",
+			wantBreaking: false,
+		},
 	}
 
-	return &semrelv1.AnalyzeCommitsRequest{
-		Ctx: &semrelv1.ReleaseContext{Commits: commits},
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotType, gotBreaking := parseCommit(tt.commit)
+			require.Equal(t, tt.wantType, gotType)
+			require.Equal(t, tt.wantBreaking, gotBreaking)
+		})
 	}
+}
+
+func TestSummarizePatchTypes(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, "fix", summarizePatchTypes(map[string]int{"fix": 1}))
+	require.Equal(t, "patch-level", summarizePatchTypes(map[string]int{"fix": 1, "perf": 1}))
 }
