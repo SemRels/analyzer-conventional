@@ -1,25 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The plugin-template Authors
+// SPDX-FileCopyrightText: 2026 The analyzer-conventional Authors
 
 package main
 
 import (
-	"context"
-	"log"
-	"os"
-
-	grpcserver "github.com/SemRels/analyzer-conventional/internal/grpc"
-	semrelplugin "github.com/SemRels/analyzer-conventional/internal/plugin"
+	analyzerplugin "github.com/SemRels/analyzer-conventional/internal/plugin"
+	semrelapi "github.com/SemRels/semrel-api/plugin"
+	goplugin "github.com/hashicorp/go-plugin"
 )
 
 func main() {
-	provider := semrelplugin.NewProvider("analyzer-conventional")
-	server := grpcserver.NewProviderServer(provider)
-
-	if _, err := server.Health(context.Background()); err != nil {
-		log.Printf("plugin health check failed: %v", err)
-		os.Exit(1)
-	}
-
-	log.Printf("%s plugin template is ready", provider.Name())
+	goplugin.Serve(&goplugin.ServeConfig{
+		HandshakeConfig: semrelapi.HandshakeConfig,
+		Plugins: map[string]goplugin.Plugin{
+			"analyzer": &semrelapi.CommitAnalyzerGRPCPlugin{
+				Impl: analyzerplugin.New(),
+			},
+		},
+		GRPCServer: goplugin.DefaultGRPCServer,
+	})
 }
