@@ -1,47 +1,37 @@
 # analyzer-conventional
 
-Conventional commits analyzer plugin for SemRel.
+`analyzer-conventional` is a SemRels commit analyzer plugin that inspects Conventional Commit messages from the release context and returns the highest required semantic version bump.
 
-Determines release types from conventional commit messages and configurable type-to-bump rules.
+## Bump rules
 
-## Documentation
+- `BREAKING CHANGE:` footer or `!` after the type/scope (for example `feat!:` or `feat(api)!:`) → `MAJOR`
+- `feat:` or `feat(scope):` → `MINOR`
+- `fix:`, `perf:`, `revert:` → `PATCH`
+- other conventional types such as `docs:`, `chore:`, `test:`, `ci:` and non-conventional commits → no bump
 
-- SemRel docs (planned): <https://github.com/SemRels/semrel/tree/main/docs/plugins/analyzer-conventional>
-- Plugin template: <https://github.com/SemRels/plugin-template>
-- Registry: <https://registry.semrel.io>
+## Usage
 
-## Repository Layout
+Build the plugin binary:
 
-~~~text
-cmd/plugin/              Plugin entry point
-internal/plugin/         Business logic scaffold
-internal/grpc/           gRPC transport scaffold
-proto/v1                 Symlink to the SemRel protobuf contract
-.github/workflows/       CI, release, and security automation
+~~~bash
+go build -o analyzer-conventional.exe ./cmd/plugin
 ~~~
+
+SemRels loads the binary through `hashicorp/go-plugin` using the shared handshake from `github.com/SemRels/semrel-api`.
 
 ## Development
 
 ~~~bash
-go build ./cmd/plugin
-go test ./...
+go mod tidy
+go build ./...
+CGO_ENABLED=0 go test ./...
 ~~~
 
-## Configuration Example
+## Repository layout
 
-~~~yaml
-plugins:
-  - name: analyzer-conventional
-    type: analyzer
-    config:
-      preset: conventionalcommits
-      breaking_keywords:
-        - BREAKING CHANGE
-      type_map:
-        feat: minor
-        fix: patch
+~~~text
+cmd/plugin/              go-plugin entry point
+internal/plugin/         Conventional Commits analyzer implementation
+internal/grpc/           placeholder package; transport is handled by go-plugin
+proto/                   SemRels protobuf assets (currently unused by this binary)
 ~~~
-
-## Status
-
-This repository is bootstrapped from SemRels/plugin-template and is ready for implementation.
