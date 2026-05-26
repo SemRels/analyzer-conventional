@@ -1,37 +1,45 @@
 # analyzer-conventional
 
-`analyzer-conventional` is a SemRels commit analyzer plugin that inspects Conventional Commit messages from the release context and returns the highest required semantic version bump.
+Determines the semantic version bump from Conventional Commit messages.
 
-## Bump rules
+This plugin is distributed as the standalone Go binary `semrel-plugin-analyzer-conventional`. Semrel executes the binary as a subprocess, provides plugin configuration through `SEMREL_PLUGIN_*` environment variables, provides release context through `SEMREL_*` environment variables, reads standard output, and treats exit code `0` as success and any non-zero exit code as failure. Install the binary in `~/.semrel/plugins/` or anywhere on your `$PATH`.
 
-- `BREAKING CHANGE:` footer or `!` after the type/scope (for example `feat!:` or `feat(api)!:`) → `MAJOR`
-- `feat:` or `feat(scope):` → `MINOR`
-- `fix:`, `perf:`, `revert:` → `PATCH`
-- other conventional types such as `docs:`, `chore:`, `test:`, `ci:` and non-conventional commits → no bump
+## Installation
 
-## Usage
+```bash
+go install github.com/SemRels/analyzer-conventional/cmd/plugin@latest
+```
 
-Build the plugin binary:
+## Configuration
 
-~~~bash
-go build -o analyzer-conventional.exe ./cmd/plugin
-~~~
+```yaml
+plugins:
+  - name: analyzer-conventional
+    path: ~/.semrel/plugins/semrel-plugin-analyzer-conventional
+    env:
+      SEMREL_PLUGIN_BREAKING_CHANGE_LABEL: "BREAKING CHANGE"
+      SEMREL_PLUGIN_MINOR_TYPES: "feat"
+      SEMREL_PLUGIN_PATCH_TYPES: "fix,perf,refactor"
+```
 
-SemRels loads the binary through `hashicorp/go-plugin` using the shared handshake from `github.com/SemRels/semrel-api`.
+## `SEMREL_PLUGIN_*` variables
 
-## Development
+| Name | Required | Description | Default |
+| --- | --- | --- | --- |
+| `SEMREL_PLUGIN_BREAKING_CHANGE_LABEL` | Optional | Label used to detect breaking changes in commit messages. | BREAKING CHANGE |
+| `SEMREL_PLUGIN_MINOR_TYPES` | Optional | Comma-separated commit types that trigger a minor release. | feat |
+| `SEMREL_PLUGIN_PATCH_TYPES` | Optional | Comma-separated commit types that trigger a patch release. | fix,perf,refactor |
 
-~~~bash
-go mod tidy
-go build ./...
-CGO_ENABLED=0 go test ./...
-~~~
+## `SEMREL_*` release context used
 
-## Repository layout
+| Variable | Description |
+| --- | --- |
+| `SEMREL_BUMP` | Calculated bump level such as major, minor, or patch. |
 
-~~~text
-cmd/plugin/              go-plugin entry point
-internal/plugin/         Conventional Commits analyzer implementation
-internal/grpc/           placeholder package; transport is handled by go-plugin
-proto/                   SemRels protobuf assets (currently unused by this binary)
-~~~
+## Example behavior
+
+The plugin reads commit history, classifies commits using Conventional Commit rules, and emits the resulting bump decision for semrel to use.
+
+## License
+
+Apache-2.0
