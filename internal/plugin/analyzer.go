@@ -16,11 +16,15 @@ const (
 	BumpPatch BumpLevel = "patch"
 	BumpMinor BumpLevel = "minor"
 	BumpMajor BumpLevel = "major"
+
+	// PluginSchemaVersion is the schema version of this plugin's output contract.
+	PluginSchemaVersion = 1
 )
 
 type AnalysisResult struct {
-	Bump   BumpLevel `json:"bump"`
-	Reason string    `json:"reason"`
+	Bump              BumpLevel `json:"bump"`
+	Reason            string    `json:"reason"`
+	PluginSchemaVersion int     `json:"plugin_schema_version,omitempty"`
 }
 
 type Analyzer struct{}
