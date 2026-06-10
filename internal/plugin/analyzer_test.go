@@ -31,6 +31,18 @@ func TestAnalyzerAnalyze(t *testing.T) {
 			wantReason: "breaking commit(s)",
 		},
 		{
+			name:       "major from bang with scope",
+			commits:    []string{"feat(api)!: rename /users to /accounts"},
+			wantBump:   BumpMajor,
+			wantReason: "breaking commit(s)",
+		},
+		{
+			name:       "major from fix bang",
+			commits:    []string{"fix!: drop support for Node.js 14"},
+			wantBump:   BumpMajor,
+			wantReason: "breaking commit(s)",
+		},
+		{
 			name:       "minor from feat",
 			commits:    []string{"feat(api): add pagination"},
 			wantBump:   BumpMinor,
@@ -99,6 +111,36 @@ func TestParseCommit(t *testing.T) {
 			commit:       "fix(scope): patch issue",
 			wantType:     "fix",
 			wantBreaking: false,
+		},
+		{
+			name:         "bang without scope triggers breaking",
+			commit:       "feat!: remove deprecated endpoint",
+			wantType:     "feat",
+			wantBreaking: true,
+		},
+		{
+			name:         "bang with scope triggers breaking",
+			commit:       "feat(api)!: rename /users to /accounts",
+			wantType:     "feat",
+			wantBreaking: true,
+		},
+		{
+			name:         "fix bang without scope triggers breaking",
+			commit:       "fix!: drop support for Node.js 14",
+			wantType:     "fix",
+			wantBreaking: true,
+		},
+		{
+			name:         "fix bang with scope triggers breaking",
+			commit:       "fix(auth)!: remove legacy token format",
+			wantType:     "fix",
+			wantBreaking: true,
+		},
+		{
+			name:         "bang and breaking footer both present",
+			commit:       "feat!: major overhaul\n\nBREAKING CHANGE: all endpoints renamed",
+			wantType:     "feat",
+			wantBreaking: true,
 		},
 	}
 

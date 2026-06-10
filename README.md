@@ -40,6 +40,28 @@ plugins:
 
 The plugin reads commit history, classifies commits using Conventional Commit rules, and emits the resulting bump decision for semrel to use.
 
+### Breaking changes
+
+Two forms trigger a **major** bump:
+
+1. The `!` shorthand after type or scope (Conventional Commits v1.0.0 §11):
+
+   ```
+   feat!: remove deprecated authentication endpoint
+   fix!: drop support for Node.js 14
+   feat(api)!: rename /users to /accounts
+   ```
+
+2. A `BREAKING CHANGE:` footer in the commit body:
+
+   ```
+   feat: overhaul config
+
+   BREAKING CHANGE: config schema changed
+   ```
+
+Both forms can appear together in the same commit.
+
 ## License
 
 Apache-2.0
