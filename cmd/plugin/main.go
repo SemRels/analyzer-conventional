@@ -27,7 +27,10 @@ func run(stdout, stderr io.Writer, getenv func(string) string) int {
 		}
 	}
 
-	if err := json.NewEncoder(stdout).Encode(plugin.New().Analyze(commits)); err != nil {
+	result := plugin.New().Analyze(commits)
+	result.PluginSchemaVersion = plugin.PluginSchemaVersion
+
+	if err := json.NewEncoder(stdout).Encode(result); err != nil {
 		fmt.Fprintln(stderr, "analyzer-conventional:", err)
 		return 1
 	}
