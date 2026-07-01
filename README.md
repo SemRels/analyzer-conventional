@@ -1,6 +1,6 @@
 # analyzer-conventional
 
-[![Latest Release](https://img.shields.io/github/v/release/SemRels/analyzer-conventional?label=version\&color=blue)](https://github.com/SemRels/analyzer-conventional/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/SemRels/analyzer-conventional?label=version&color=blue)](https://github.com/SemRels/analyzer-conventional/releases/latest)
 
 Determines the semantic version bump from Conventional Commit messages.
 
