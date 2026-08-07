@@ -22,7 +22,7 @@ func run(stdout, stderr io.Writer, getenv func(string) string) int {
 	var commits []string
 	if raw != "" {
 		if err := json.Unmarshal([]byte(raw), &commits); err != nil {
-			fmt.Fprintln(stderr, "analyzer-conventional: invalid SEMREL_COMMITS JSON:", err)
+			_, _ = fmt.Fprintln(stderr, "analyzer-conventional: invalid SEMREL_COMMITS JSON:", err)
 			return 1
 		}
 	}
@@ -31,7 +31,7 @@ func run(stdout, stderr io.Writer, getenv func(string) string) int {
 	result.PluginSchemaVersion = plugin.PluginSchemaVersion
 
 	if err := json.NewEncoder(stdout).Encode(result); err != nil {
-		fmt.Fprintln(stderr, "analyzer-conventional:", err)
+		_, _ = fmt.Fprintln(stderr, "analyzer-conventional:", err)
 		return 1
 	}
 
