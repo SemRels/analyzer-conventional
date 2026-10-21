@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The analyzer-conventional Authors
+// SPDX-FileCopyrightText: 2026 The semrel Authors
 
 package plugin
 
@@ -22,9 +22,9 @@ const (
 )
 
 type AnalysisResult struct {
-	Bump              BumpLevel `json:"bump"`
-	Reason            string    `json:"reason"`
-	PluginSchemaVersion int     `json:"plugin_schema_version,omitempty"`
+	Bump                BumpLevel `json:"bump"`
+	Reason              string    `json:"reason"`
+	PluginSchemaVersion int       `json:"plugin_schema_version,omitempty"`
 }
 
 type Analyzer struct{}
