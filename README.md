@@ -39,21 +39,22 @@ cosign verify ghcr.io/semrels/analyzer-conventional:latest \
 
 ```yaml
 plugins:
-  - name: analyzer-conventional
-    path: ~/.semrel/plugins/semrel-plugin-analyzer-conventional
-    env:
-      SEMREL_PLUGIN_BREAKING_CHANGE_LABEL: "BREAKING CHANGE"
-      SEMREL_PLUGIN_MINOR_TYPES: "feat"
-      SEMREL_PLUGIN_PATCH_TYPES: "fix,perf,refactor"
+  - uses: "@semrel/analyzer-conventional"
+    args:
+      breaking_change_label: "BREAKING CHANGE"
+      minor_types: "feat"
+      patch_types: "fix,perf,refactor"
 ```
 
-## `SEMREL_PLUGIN_*` variables
+## Options
 
-| Name | Required | Description | Default |
-| --- | --- | --- | --- |
-| `SEMREL_PLUGIN_BREAKING_CHANGE_LABEL` | Optional | Label used to detect breaking changes in commit messages. | BREAKING CHANGE |
-| `SEMREL_PLUGIN_MINOR_TYPES` | Optional | Comma-separated commit types that trigger a minor release. | feat |
-| `SEMREL_PLUGIN_PATCH_TYPES` | Optional | Comma-separated commit types that trigger a patch release. | fix,perf,refactor |
+Every option can be set as an entry under `args` in `.semrel.yaml`. semrel passes each entry to the plugin as the environment variable shown in the table, so you can also set that variable directly (for example in your CI environment) instead of using `args`.
+
+| Argument | Environment variable | Required | Description | Default |
+| --- | --- | --- | --- | --- |
+| `breaking_change_label` | `SEMREL_PLUGIN_BREAKING_CHANGE_LABEL` | Optional | Label used to detect breaking changes in commit messages. | BREAKING CHANGE |
+| `minor_types` | `SEMREL_PLUGIN_MINOR_TYPES` | Optional | Comma-separated commit types that trigger a minor release. | feat |
+| `patch_types` | `SEMREL_PLUGIN_PATCH_TYPES` | Optional | Comma-separated commit types that trigger a patch release. | fix,perf,refactor |
 
 ## `SEMREL_*` release context used
 
