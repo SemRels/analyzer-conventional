@@ -1,6 +1,10 @@
 # analyzer-conventional
 
 [![Latest Release](https://img.shields.io/github/v/release/SemRels/analyzer-conventional?label=version&color=blue)](https://github.com/SemRels/analyzer-conventional/releases/latest)
+[![CI](https://github.com/SemRels/analyzer-conventional/actions/workflows/ci.yml/badge.svg)](https://github.com/SemRels/analyzer-conventional/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/SemRels/analyzer-conventional)](LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/SemRels/analyzer-conventional/badge)](https://scorecard.dev/viewer/?uri=github.com/SemRels/analyzer-conventional)
+[![REUSE status](https://api.reuse.software/badge/github.com/SemRels/analyzer-conventional)](https://api.reuse.software/info/github.com/SemRels/analyzer-conventional)
 
 Determines the semantic version bump from Conventional Commit messages.
 
