@@ -1,6 +1,6 @@
 # Code of Conduct
 
-analyzer-conventional is committed to providing a welcoming and harassment-free community.
+`analyzer-conventional` is committed to providing a welcoming and harassment-free community.
 
 ## Our Pledge
 
